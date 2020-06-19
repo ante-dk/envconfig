@@ -225,12 +225,14 @@ func TestParseErrorBool(t *testing.T) {
 	os.Setenv("ENV_CONFIG_DEBUG", "string")
 	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
 	err := Process("env_config", &s)
-	v, ok := err.(*ParseError)
+
+	v, ok := err.(*ParseErrorList)
 	if !ok {
-		t.Errorf("expected ParseError, got %v", v)
+		t.Errorf("expected ParseErrorList, got %v", v)
 	}
-	if v.FieldName != "Debug" {
-		t.Errorf("expected %s, got %v", "Debug", v.FieldName)
+	pers := (*v)[0]
+	if pers.FieldName != "Debug" {
+		t.Errorf("expected %s, got %v", "Debug", pers.FieldName)
 	}
 	if s.Debug != false {
 		t.Errorf("expected %v, got %v", false, s.Debug)
@@ -243,12 +245,14 @@ func TestParseErrorFloat32(t *testing.T) {
 	os.Setenv("ENV_CONFIG_RATE", "string")
 	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
 	err := Process("env_config", &s)
-	v, ok := err.(*ParseError)
+
+	v, ok := err.(*ParseErrorList)
 	if !ok {
-		t.Errorf("expected ParseError, got %v", v)
+		t.Errorf("expected ParseErrorList, got %v", v)
 	}
-	if v.FieldName != "Rate" {
-		t.Errorf("expected %s, got %v", "Rate", v.FieldName)
+	pers := (*v)[0]
+	if pers.FieldName != "Rate" {
+		t.Errorf("expected %s, got %v", "Rate", pers.FieldName)
 	}
 	if s.Rate != 0 {
 		t.Errorf("expected %v, got %v", 0, s.Rate)
@@ -261,12 +265,13 @@ func TestParseErrorInt(t *testing.T) {
 	os.Setenv("ENV_CONFIG_PORT", "string")
 	os.Setenv("ENV_CONFIG_REQUIREDVAR", "foo")
 	err := Process("env_config", &s)
-	v, ok := err.(*ParseError)
+	v, ok := err.(*ParseErrorList)
 	if !ok {
-		t.Errorf("expected ParseError, got %v", v)
+		t.Errorf("expected ParseErrorList, got %v", v)
 	}
-	if v.FieldName != "Port" {
-		t.Errorf("expected %s, got %v", "Port", v.FieldName)
+	pers := (*v)[0]
+	if pers.FieldName != "Port" {
+		t.Errorf("expected %s, got %v", "Port", pers.FieldName)
 	}
 	if s.Port != 0 {
 		t.Errorf("expected %v, got %v", 0, s.Port)
@@ -278,12 +283,13 @@ func TestParseErrorUint(t *testing.T) {
 	os.Clearenv()
 	os.Setenv("ENV_CONFIG_TTL", "-30")
 	err := Process("env_config", &s)
-	v, ok := err.(*ParseError)
+	v, ok := err.(*ParseErrorList)
 	if !ok {
-		t.Errorf("expected ParseError, got %v", v)
+		t.Errorf("expected ParseErrorList, got %v", v)
 	}
-	if v.FieldName != "TTL" {
-		t.Errorf("expected %s, got %v", "TTL", v.FieldName)
+	pers := (*v)[0]
+	if pers.FieldName != "TTL" {
+		t.Errorf("expected %s, got %v", "TTL", pers.FieldName)
 	}
 	if s.TTL != 0 {
 		t.Errorf("expected %v, got %v", 0, s.TTL)
@@ -295,12 +301,13 @@ func TestParseErrorSplitWords(t *testing.T) {
 	os.Clearenv()
 	os.Setenv("ENV_CONFIG_MULTI_WORD_VAR_WITH_AUTO_SPLIT", "shakespeare")
 	err := Process("env_config", &s)
-	v, ok := err.(*ParseError)
+	v, ok := err.(*ParseErrorList)
 	if !ok {
-		t.Errorf("expected ParseError, got %v", v)
+		t.Errorf("expected ParseErrorList, got %v", v)
 	}
-	if v.FieldName != "MultiWordVarWithAutoSplit" {
-		t.Errorf("expected %s, got %v", "", v.FieldName)
+	pers := (*v)[0]
+	if pers.FieldName != "MultiWordVarWithAutoSplit" {
+		t.Errorf("expected %s, got %v", "", pers.FieldName)
 	}
 	if s.MultiWordVarWithAutoSplit != 0 {
 		t.Errorf("expected %v, got %v", 0, s.MultiWordVarWithAutoSplit)
@@ -710,12 +717,13 @@ func TestTextUnmarshalerError(t *testing.T) {
 
 	err := Process("env_config", &s)
 
-	v, ok := err.(*ParseError)
+	v, ok := err.(*ParseErrorList)
 	if !ok {
-		t.Errorf("expected ParseError, got %v", v)
+		t.Errorf("expected ParseErrorList, got %v", v)
 	}
-	if v.FieldName != "Datetime" {
-		t.Errorf("expected %s, got %v", "Datetime", v.FieldName)
+	pers := (*v)[0]
+	if pers.FieldName != "Datetime" {
+		t.Errorf("expected %s, got %v", "Datetime", pers.FieldName)
 	}
 
 	expectedLowLevelError := time.ParseError{
@@ -725,8 +733,8 @@ func TestTextUnmarshalerError(t *testing.T) {
 		ValueElem:  "I'M NOT A DATE",
 	}
 
-	if v.Err.Error() != expectedLowLevelError.Error() {
-		t.Errorf("expected %s, got %s", expectedLowLevelError, v.Err)
+	if pers.Err.Error() != expectedLowLevelError.Error() {
+		t.Errorf("expected %s, got %s", expectedLowLevelError, pers.Err)
 	}
 }
 
@@ -738,20 +746,21 @@ func TestBinaryUnmarshalerError(t *testing.T) {
 
 	err := Process("env_config", &s)
 
-	v, ok := err.(*ParseError)
+	v, ok := err.(*ParseErrorList)
 	if !ok {
-		t.Fatalf("expected ParseError, got %T %v", err, err)
+		t.Errorf("expected ParseErrorList, got %v", v)
 	}
-	if v.FieldName != "UrlPointer" {
-		t.Errorf("expected %s, got %v", "UrlPointer", v.FieldName)
+	pers := (*v)[0]
+	if pers.FieldName != "UrlPointer" {
+		t.Errorf("expected %s, got %v", "UrlPointer", pers.FieldName)
 	}
 
 	// To be compatible with go 1.5 and lower we should do a very basic check,
 	// because underlying error message varies in go 1.5 and go 1.6+.
 
-	ue, ok := v.Err.(*url.Error)
+	ue, ok := pers.Err.(*url.Error)
 	if !ok {
-		t.Errorf("expected error type to be \"*url.Error\", got %T", v.Err)
+		t.Errorf("expected error type to be \"*url.Error\", got %T", pers.Err)
 	}
 
 	if ue.Op != "parse" {
@@ -794,7 +803,7 @@ func TestCheckDisallowedIgnored(t *testing.T) {
 
 func TestErrorMessageForRequiredAltVar(t *testing.T) {
 	var s struct {
-		Foo    string `envconfig:"BAR" required:"true"`
+		Foo string `envconfig:"BAR" required:"true"`
 	}
 
 	os.Clearenv()
@@ -804,7 +813,7 @@ func TestErrorMessageForRequiredAltVar(t *testing.T) {
 		t.Error("no failure when missing required variable")
 	}
 
-	if !strings.Contains(err.Error(), " BAR ") {
+	if !strings.Contains(err.Error(), "BAR") {
 		t.Errorf("expected error message to contain BAR, got \"%v\"", err)
 	}
 }

@@ -5,6 +5,7 @@
 package envconfig
 
 import (
+	"bytes"
 	"encoding"
 	"errors"
 	"fmt"
@@ -22,8 +23,8 @@ var ErrInvalidSpecification = errors.New("specification must be a struct pointer
 var gatherRegexp = regexp.MustCompile("([^A-Z]+|[A-Z]+[^A-Z]+|[A-Z]+)")
 var acronymRegexp = regexp.MustCompile("([A-Z]+)([A-Z][^A-Z]+)")
 
-// A ParseError occurs when an environment variable cannot be converted to
-// the type required by a struct field during assignment.
+// A ParseError occurs either, when a required environment variable is missing or
+// cannot be converted to the type required by a struct field during assignment.
 type ParseError struct {
 	KeyName   string
 	FieldName string
@@ -31,6 +32,10 @@ type ParseError struct {
 	Value     string
 	Err       error
 }
+
+// ParseErrorList is a collection of ParseErrors gathered when processing
+// environment variables.
+type ParseErrorList []*ParseError
 
 // Decoder has the same semantics as Setter, but takes higher precedence.
 // It is provided for historical compatibility.
@@ -46,6 +51,26 @@ type Setter interface {
 
 func (e *ParseError) Error() string {
 	return fmt.Sprintf("envconfig.Process: assigning %[1]s to %[2]s: converting '%[3]s' to type %[4]s. details: %[5]s", e.KeyName, e.FieldName, e.Value, e.TypeName, e.Err)
+}
+
+func (pes *ParseErrorList) Error() string {
+	buf := &bytes.Buffer{}
+	for _, e := range *pes {
+		buf.WriteString(e.Error())
+		buf.Write([]byte("\n"))
+
+	}
+	return buf.String()
+}
+
+// Add adds a ParseError to the ParseErrorList.
+func (pes *ParseErrorList) Add(e *ParseError) {
+	*pes = append(*pes, e)
+}
+
+// Len returns the number of errors in ParseErrorList.
+func (pes *ParseErrorList) Len() int {
+	return len(*pes)
 }
 
 // varInfo maintains information about the configuration variable
@@ -183,7 +208,11 @@ func CheckDisallowed(prefix string, spec interface{}) error {
 // Process populates the specified struct based on environment variables
 func Process(prefix string, spec interface{}) error {
 	infos, err := gatherInfo(prefix, spec)
+	if err != nil {
+		return err
+	}
 
+	var errs ParseErrorList
 	for _, info := range infos {
 
 		// `os.Getenv` cannot differentiate between an explicitly set empty value
@@ -203,28 +232,32 @@ func Process(prefix string, spec interface{}) error {
 		req := info.Tags.Get("required")
 		if !ok && def == "" {
 			if isTrue(req) {
-				key := info.Key
-				if info.Alt != "" {
-					key = info.Alt
-				}
-				return fmt.Errorf("required key %s missing value", key)
+				errs.Add(&ParseError{
+					KeyName:   info.Key,
+					FieldName: info.Name,
+					TypeName:  info.Field.Type().String(),
+					Value:     value,
+					Err:       fmt.Errorf("required environment variable %s missing value", info.Key),
+				})
 			}
 			continue
 		}
 
 		err = processField(value, info.Field)
 		if err != nil {
-			return &ParseError{
+			errs.Add(&ParseError{
 				KeyName:   info.Key,
 				FieldName: info.Name,
 				TypeName:  info.Field.Type().String(),
 				Value:     value,
 				Err:       err,
-			}
+			})
 		}
 	}
-
-	return err
+	if errs.Len() != 0 {
+		return &errs
+	}
+	return nil
 }
 
 // MustProcess is the same as Process but panics if an error occurs
