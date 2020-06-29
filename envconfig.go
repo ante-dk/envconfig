@@ -58,7 +58,6 @@ func (pes *ParseErrorList) Error() string {
 	for _, e := range *pes {
 		buf.WriteString(e.Error())
 		buf.Write([]byte("\n"))
-
 	}
 	return buf.String()
 }
