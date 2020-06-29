@@ -48,12 +48,14 @@ func TestParseURLError(t *testing.T) {
 
 	err := Process("env_config", &s)
 
-	v, ok := err.(*ParseError)
+	v, ok := err.(*ParseErrorList)
 	if !ok {
-		t.Fatalf("expected ParseError, got %T %v", err, err)
+		t.Fatalf("expected ParseErrorList, got %T %v", err, err)
 	}
-	if v.FieldName != "UrlPointer" {
-		t.Errorf("expected %s, got %v", "UrlPointer", v.FieldName)
+
+	perr := (*v)[0]
+	if perr.FieldName != "UrlPointer" {
+		t.Errorf("expected %s, got %v", "UrlPointer", perr.FieldName)
 	}
 
 	expectedUnerlyingError := url.Error{
@@ -62,7 +64,7 @@ func TestParseURLError(t *testing.T) {
 		Err: errors.New("first path segment in URL cannot contain colon"),
 	}
 
-	if v.Err.Error() != expectedUnerlyingError.Error() {
-		t.Errorf("expected %q, got %q", expectedUnerlyingError, v.Err)
+	if perr.Err.Error() != expectedUnerlyingError.Error() {
+		t.Errorf("expected %q, got %q", expectedUnerlyingError, perr.Err)
 	}
 }
